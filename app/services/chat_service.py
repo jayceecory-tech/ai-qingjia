@@ -3,10 +3,14 @@
 import json
 import os
 from collections.abc import AsyncGenerator
+from dotenv import load_dotenv
 
 from openai import AsyncOpenAI
 
 from app.skills.leave_skills import LEAVE_SKILLS, execute_skill
+
+# 加载环境变量
+load_dotenv()
 
 SYSTEM_PROMPT = """你是一个智能请假助手，帮助员工查询假期余额和提交请假申请。
 
@@ -46,9 +50,27 @@ def _get_client() -> AsyncOpenAI:
 
     支持通过环境变量配置不同的 API 提供商（如 DeepSeek、通义千问等）。
     """
+    import httpx
+    
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    model = os.getenv("OPENAI_MODEL", "gpt-4o")
+    
+    print(f"DEBUG: API Key: {api_key[:10]}...")
+    print(f"DEBUG: Base URL: {base_url}")
+    print(f"DEBUG: Model: {model}")
+    
+    # 禁用SSL验证（仅用于测试，生产环境应使用正确证书）
+    transport = httpx.AsyncHTTPTransport(retries=3, verify=False)
+    
     return AsyncOpenAI(
-        api_key=os.getenv("OPENAI_API_KEY", ""),
-        base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        api_key=api_key,
+        base_url=base_url,
+        timeout=httpx.Timeout(60.0, connect=10.0),  # 总超时60秒，连接超时10秒
+        http_client=httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+            transport=transport,
+        ),
     )
 
 
