@@ -92,29 +92,60 @@ LEAVE_SKILLS = [
 
 async def execute_skill(name: str, arguments: str) -> str:
     """执行 skill 并返回结果."""
-    args = json.loads(arguments)
+    try:
+        args = json.loads(arguments)
+    except json.JSONDecodeError as e:
+        return json.dumps(
+            {"error": f"参数解析失败: {e!s}"}, ensure_ascii=False
+        )
 
     if name == "query_leave_balance":
         leave_type = None
-        if "leave_type" in args:
-            leave_type = LeaveBalanceType(args["leave_type"])
+        if args.get("leave_type"):
+            try:
+                leave_type = LeaveBalanceType(args["leave_type"])
+            except ValueError:
+                return json.dumps(
+                    {"error": f"不支持的假期类型: {args['leave_type']}"},
+                    ensure_ascii=False,
+                )
+        employee_id = args.get("employee_id", "")
+        if not employee_id:
+            return json.dumps(
+                {"error": "缺少员工编号 employee_id"}, ensure_ascii=False
+            )
         result = await oa_client.query_leave_balance(
-            employee_id=args["employee_id"],
+            employee_id=employee_id,
             leave_type=leave_type,
         )
         return result.model_dump_json(ensure_ascii=False)
 
     elif name == "submit_leave_request":
-        request = LeaveRequest(
-            employee_name=args["employee_name"],
-            department=args["department"],
-            employee_id=args["employee_id"],
-            leave_type=LeaveType(args["leave_type"]),
-            reason=args["reason"],
-            start_date=args["start_date"],
-            end_date=args["end_date"],
-            days=args["days"],
-        )
+        required_fields = [
+            "employee_name", "department", "employee_id",
+            "leave_type", "reason", "start_date", "end_date", "days",
+        ]
+        missing = [f for f in required_fields if not args.get(f)]
+        if missing:
+            return json.dumps(
+                {"error": f"缺少必要字段: {', '.join(missing)}"},
+                ensure_ascii=False,
+            )
+        try:
+            request = LeaveRequest(
+                employee_name=args["employee_name"],
+                department=args["department"],
+                employee_id=args["employee_id"],
+                leave_type=LeaveType(args["leave_type"]),
+                reason=args["reason"],
+                start_date=args["start_date"],
+                end_date=args["end_date"],
+                days=float(args["days"]),
+            )
+        except (ValueError, TypeError) as e:
+            return json.dumps(
+                {"error": f"参数校验失败: {e!s}"}, ensure_ascii=False
+            )
         result = await oa_client.submit_leave_request(request)
         return result.model_dump_json(ensure_ascii=False)
 

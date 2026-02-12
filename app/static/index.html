@@ -5,48 +5,105 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 请假助手</title>
     <style>
+        :root {
+            --primary: #1677ff;
+            --primary-light: #e6f4ff;
+            --primary-hover: #4096ff;
+            --success: #52c41a;
+            --success-light: #f6ffed;
+            --success-border: #b7eb8f;
+            --warning: #faad14;
+            --warning-light: #fffbe6;
+            --error: #ff4d4f;
+            --error-light: #fff2f0;
+            --text: #1f1f1f;
+            --text-secondary: #666;
+            --text-tertiary: #999;
+            --border: #e8e8e8;
+            --bg: #f5f7fa;
+            --card-bg: #fff;
+            --shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #f0f2f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
             height: 100vh;
             display: flex;
             flex-direction: column;
         }
+
+        /* Header */
         .header {
-            background: #1677ff;
+            background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%);
             color: white;
             padding: 16px 24px;
             font-size: 18px;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            gap: 10px;
+            box-shadow: 0 2px 12px rgba(22,119,255,0.3);
+            position: relative;
+            z-index: 10;
         }
-        .header span { font-size: 24px; }
+        .header-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .header-subtitle {
+            font-size: 12px;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        /* Config bar */
         .config-bar {
-            background: white;
-            padding: 12px 24px;
-            border-bottom: 1px solid #e8e8e8;
+            background: var(--card-bg);
+            padding: 10px 24px;
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             gap: 12px;
-            flex-wrap: wrap;
         }
         .config-bar label {
-            font-size: 14px;
-            color: #666;
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
         }
         .config-bar input {
             padding: 6px 12px;
             border: 1px solid #d9d9d9;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            width: 120px;
         }
-        .config-bar input:focus { border-color: #1677ff; }
+        .config-bar input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(22,119,255,0.1);
+        }
+        .config-bar .employee-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Chat container */
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -54,161 +111,487 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            scroll-behavior: smooth;
         }
+        .chat-container::-webkit-scrollbar { width: 6px; }
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #d9d9d9; border-radius: 3px;
+        }
+        .chat-container::-webkit-scrollbar-thumb:hover { background: #bbb; }
+
+        /* Messages */
         .message {
-            max-width: 75%;
+            max-width: 80%;
             padding: 12px 16px;
-            border-radius: 12px;
-            line-height: 1.6;
+            border-radius: var(--radius);
+            line-height: 1.7;
             font-size: 14px;
-            white-space: pre-wrap;
             word-break: break-word;
+            animation: fadeInUp 0.3s ease;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .message.user {
             align-self: flex-end;
-            background: #1677ff;
+            background: var(--primary);
             color: white;
             border-bottom-right-radius: 4px;
+            box-shadow: 0 2px 8px rgba(22,119,255,0.25);
         }
         .message.assistant {
             align-self: flex-start;
-            background: white;
-            color: #333;
+            background: var(--card-bg);
+            color: var(--text);
             border-bottom-left-radius: 4px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            box-shadow: var(--shadow);
         }
-        .message.skill-info {
+        /* Markdown formatting inside assistant messages */
+        .message.assistant p { margin: 0 0 8px 0; }
+        .message.assistant p:last-child { margin-bottom: 0; }
+        .message.assistant strong { font-weight: 600; color: var(--text); }
+        .message.assistant ul, .message.assistant ol {
+            margin: 4px 0 8px 20px;
+        }
+        .message.assistant li { margin-bottom: 2px; }
+        .message.assistant code {
+            background: #f5f5f5; padding: 1px 5px; border-radius: 3px;
+            font-size: 13px; font-family: "SFMono-Regular", Consolas, monospace;
+        }
+
+        /* Skill execution indicator */
+        .skill-indicator {
             align-self: flex-start;
-            background: #f6ffed;
-            color: #52c41a;
-            border: 1px solid #b7eb8f;
-            font-size: 12px;
-            max-width: 85%;
-        }
-        .message.error {
-            align-self: center;
-            background: #fff2f0;
-            color: #ff4d4f;
-            border: 1px solid #ffccc7;
-            font-size: 13px;
-        }
-        .typing-indicator {
-            align-self: flex-start;
-            color: #999;
-            font-size: 13px;
-            padding: 8px 0;
-        }
-        .input-area {
-            background: white;
-            padding: 16px 24px;
-            border-top: 1px solid #e8e8e8;
             display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--success-light);
+            border: 1px solid var(--success-border);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--success);
+            animation: fadeInUp 0.3s ease;
+        }
+        .skill-indicator .dot {
+            width: 6px; height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ===== Rich Cards ===== */
+
+        /* Leave Balance Card */
+        .balance-card {
+            align-self: flex-start;
+            max-width: 90%;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            animation: fadeInUp 0.3s ease;
+        }
+        .balance-card-header {
+            background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%);
+            color: white;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .balance-card-header .emp-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .balance-card-header .emp-avatar {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 600;
+        }
+        .balance-card-header .emp-name { font-size: 15px; font-weight: 600; }
+        .balance-card-header .emp-dept { font-size: 12px; opacity: 0.85; }
+        .balance-card-body {
+            padding: 16px 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 12px;
         }
-        .input-area textarea {
-            flex: 1;
-            padding: 10px 16px;
-            border: 1px solid #d9d9d9;
-            border-radius: 8px;
-            font-size: 14px;
-            resize: none;
-            outline: none;
-            font-family: inherit;
-            transition: border-color 0.3s;
-            height: 44px;
-            line-height: 24px;
+        .balance-item {
+            padding: 12px;
+            background: #fafbfc;
+            border-radius: var(--radius-sm);
+            border: 1px solid #f0f0f0;
+            transition: box-shadow 0.2s;
         }
-        .input-area textarea:focus { border-color: #1677ff; }
-        .input-area button {
-            padding: 0 24px;
-            background: #1677ff;
+        .balance-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .balance-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .balance-item-type {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .balance-item-type .type-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+        }
+        .balance-item-remaining {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .balance-item-remaining small {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--text-tertiary);
+        }
+        .balance-progress {
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0 6px;
+        }
+        .balance-progress-bar {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+        .balance-item-detail {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+
+        /* Leave Request Result Card */
+        .leave-result-card {
+            align-self: flex-start;
+            max-width: 85%;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            animation: fadeInUp 0.3s ease;
+        }
+        .leave-result-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .leave-result-header.success {
+            background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
             color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background 0.3s;
+        }
+        .leave-result-header.fail {
+            background: linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%);
+            color: white;
+        }
+        .leave-result-icon {
+            width: 40px; height: 40px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .leave-result-title { font-size: 16px; font-weight: 600; }
+        .leave-result-subtitle { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+        .leave-result-body {
+            padding: 16px 20px;
+        }
+        .leave-result-info {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 16px;
+            font-size: 13px;
+        }
+        .leave-result-info dt {
+            color: var(--text-tertiary);
             white-space: nowrap;
         }
-        .input-area button:hover { background: #4096ff; }
-        .input-area button:disabled {
-            background: #d9d9d9;
-            cursor: not-allowed;
+        .leave-result-info dd {
+            color: var(--text);
+            font-weight: 500;
         }
+        .leave-result-id {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: #f6ffed;
+            border: 1px dashed #b7eb8f;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #389e0d;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Error message */
+        .message.error {
+            align-self: center;
+            background: var(--error-light);
+            color: var(--error);
+            border: 1px solid #ffccc7;
+            font-size: 13px;
+            border-radius: 20px;
+            padding: 8px 20px;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-tertiary);
+            font-size: 13px;
+            padding: 8px 0;
+            animation: fadeInUp 0.3s ease;
+        }
+        .typing-dots {
+            display: flex; gap: 4px;
+        }
+        .typing-dots span {
+            width: 6px; height: 6px;
+            background: #bbb;
+            border-radius: 50%;
+            animation: typingBounce 1.4s ease-in-out infinite;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        /* Welcome */
         .welcome {
             text-align: center;
-            color: #999;
-            padding: 40px 20px;
+            padding: 48px 20px;
+            animation: fadeInUp 0.5s ease;
+        }
+        .welcome-icon {
+            width: 72px; height: 72px;
+            background: linear-gradient(135deg, #e6f4ff 0%, #bae0ff 100%);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 20px;
         }
         .welcome h2 {
-            font-size: 20px;
-            color: #333;
-            margin-bottom: 12px;
+            font-size: 22px;
+            color: var(--text);
+            margin-bottom: 8px;
+            font-weight: 600;
         }
         .welcome p {
             font-size: 14px;
-            line-height: 2;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        .welcome-features {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        .welcome-feature {
+            padding: 12px 16px;
+            background: var(--card-bg);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .welcome-feature-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
         }
         .quick-actions {
             display: flex;
             gap: 8px;
             justify-content: center;
-            margin-top: 16px;
+            margin-top: 24px;
             flex-wrap: wrap;
         }
         .quick-actions button {
-            padding: 8px 16px;
-            background: white;
+            padding: 8px 18px;
+            background: var(--card-bg);
             border: 1px solid #d9d9d9;
             border-radius: 20px;
             font-size: 13px;
             cursor: pointer;
             transition: all 0.3s;
-            color: #666;
+            color: var(--text-secondary);
+            font-family: inherit;
         }
         .quick-actions button:hover {
-            border-color: #1677ff;
-            color: #1677ff;
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+            box-shadow: 0 2px 8px rgba(22,119,255,0.1);
+        }
+
+        /* Input area */
+        .input-area {
+            background: var(--card-bg);
+            padding: 14px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .input-area textarea {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1.5px solid #d9d9d9;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            transition: all 0.3s;
+            height: 44px;
+            line-height: 22px;
+            max-height: 120px;
+        }
+        .input-area textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(22,119,255,0.08);
+        }
+        .input-area button {
+            padding: 0 24px;
+            height: 44px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-family: inherit;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .input-area button:hover { background: var(--primary-hover); box-shadow: 0 2px 8px rgba(22,119,255,0.3); }
+        .input-area button:disabled {
+            background: #d9d9d9;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .message { max-width: 90%; }
+            .balance-card { max-width: 95%; }
+            .balance-card-body { grid-template-columns: 1fr; }
+            .leave-result-card { max-width: 95%; }
+            .welcome-features { flex-direction: column; align-items: center; }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <span>&#128197;</span> AI 请假助手
+        <div class="header-icon">&#128197;</div>
+        <div>
+            <div>AI 请假助手</div>
+            <div class="header-subtitle">智能假期管理 · 对话即服务</div>
+        </div>
     </div>
 
     <div class="config-bar">
-        <label>员工编号：</label>
+        <label>当前员工：</label>
         <input type="text" id="employeeId" placeholder="如 EMP001" value="EMP001">
+        <span class="employee-badge" id="empBadge">&#128100; EMP001</span>
     </div>
 
     <div class="chat-container" id="chatContainer">
-        <div class="welcome">
+        <div class="welcome" id="welcomeSection">
+            <div class="welcome-icon">&#128197;</div>
             <h2>AI 请假助手</h2>
-            <p>我可以帮你查询假期余额、提交请假申请</p>
-            <p>支持查询：年假、调休、带薪病假、2022/2023福利年假、育儿假</p>
-            <p>支持请假：事假、病假、年假、调休、带薪病假</p>
+            <p>通过自然语言对话，轻松完成假期查询和请假申请</p>
+            <div class="welcome-features">
+                <div class="welcome-feature">
+                    <div class="welcome-feature-icon" style="background:#e6f4ff;">&#128270;</div>
+                    查询各类假期余额
+                </div>
+                <div class="welcome-feature">
+                    <div class="welcome-feature-icon" style="background:#f6ffed;">&#128221;</div>
+                    提交请假申请
+                </div>
+                <div class="welcome-feature">
+                    <div class="welcome-feature-icon" style="background:#fffbe6;">&#128172;</div>
+                    多轮对话补全信息
+                </div>
+            </div>
             <div class="quick-actions">
-                <button onclick="sendQuick('帮我查一下我还有多少年假')">查询年假余额</button>
-                <button onclick="sendQuick('查询我所有假期余额')">查询全部余额</button>
-                <button onclick="sendQuick('我想请一天年假')">申请年假</button>
-                <button onclick="sendQuick('我明天需要请病假一天')">申请病假</button>
+                <button onclick="sendQuick('帮我查一下我还有多少年假')">&#128197; 查询年假</button>
+                <button onclick="sendQuick('查询我所有假期余额')">&#128202; 全部余额</button>
+                <button onclick="sendQuick('我想请一天年假')">&#128221; 申请年假</button>
+                <button onclick="sendQuick('我明天需要请病假一天')">&#129658; 申请病假</button>
             </div>
         </div>
     </div>
 
     <div class="input-area">
         <textarea id="messageInput" placeholder="输入消息，如：帮我查一下还有多少年假..."
-                  onkeydown="handleKeydown(event)"></textarea>
-        <button id="sendBtn" onclick="sendMessage()">发送</button>
+                  onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
+        <button id="sendBtn" onclick="sendMessage()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            发送
+        </button>
     </div>
 
     <script>
         const chatContainer = document.getElementById('chatContainer');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
+        const empIdInput = document.getElementById('employeeId');
+        const empBadge = document.getElementById('empBadge');
         let history = [];
         let isStreaming = false;
+        // Store the latest skill_call and skill_result for rich rendering
+        let pendingSkillCalls = [];
+        let pendingSkillResults = [];
+
+        // Update employee badge when ID changes
+        empIdInput.addEventListener('input', () => {
+            empBadge.innerHTML = `&#128100; ${empIdInput.value.trim() || '未设置'}`;
+        });
+
+        // Auto resize textarea
+        function autoResize(el) {
+            el.style.height = '44px';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
 
         function handleKeydown(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -222,44 +605,205 @@
             sendMessage();
         }
 
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // ===== Simple Markdown Renderer =====
+        function renderMarkdown(text) {
+            if (!text) return '';
+            let html = text
+                // Escape HTML
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                // Bold
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                // Inline code
+                .replace(/`(.+?)`/g, '<code>$1</code>')
+                // Line breaks
+                .replace(/\n/g, '<br>');
+            return html;
+        }
+
+        // ===== Rich Card Renderers =====
+
+        // Color palette for different leave types
+        const typeColors = {
+            '年假': { bg: '#e6f4ff', color: '#1677ff', bar: '#1677ff' },
+            '调休': { bg: '#f6ffed', color: '#52c41a', bar: '#52c41a' },
+            '带薪病假': { bg: '#fff7e6', color: '#fa8c16', bar: '#fa8c16' },
+            '2022福利年假': { bg: '#f9f0ff', color: '#722ed1', bar: '#722ed1' },
+            '2023福利年假': { bg: '#fff0f6', color: '#eb2f96', bar: '#eb2f96' },
+            '育儿假': { bg: '#e6fffb', color: '#13c2c2', bar: '#13c2c2' },
+        };
+        const defaultTypeColor = { bg: '#f5f5f5', color: '#666', bar: '#999' };
+
+        function getTypeColor(typeName) {
+            return typeColors[typeName] || defaultTypeColor;
+        }
+
+        function renderBalanceCard(data) {
+            const tc = getTypeColor;
+            let balancesHtml = '';
+            for (const b of data.balances) {
+                const c = tc(b.leave_type);
+                const usedPercent = b.total_days > 0
+                    ? Math.round((b.used_days / b.total_days) * 100)
+                    : 0;
+                const remainPercent = 100 - usedPercent;
+                // Choose bar color based on remaining
+                let barColor = c.bar;
+                if (b.remaining_days <= 0) barColor = '#ff4d4f';
+                else if (b.remaining_days <= b.total_days * 0.2) barColor = '#faad14';
+
+                balancesHtml += `
+                    <div class="balance-item">
+                        <div class="balance-item-header">
+                            <span class="balance-item-type">
+                                <span class="type-dot" style="background:${c.color}"></span>
+                                ${b.leave_type}
+                            </span>
+                            <span class="balance-item-remaining">
+                                ${b.remaining_days}<small> 天</small>
+                            </span>
+                        </div>
+                        <div class="balance-progress">
+                            <div class="balance-progress-bar"
+                                 style="width:${remainPercent}%;background:${barColor}"></div>
+                        </div>
+                        <div class="balance-item-detail">
+                            <span>总共 ${b.total_days} 天</span>
+                            <span>已用 ${b.used_days} 天</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const nameInitial = data.employee_name ? data.employee_name.charAt(0) : '?';
+
+            const card = document.createElement('div');
+            card.className = 'balance-card';
+            card.innerHTML = `
+                <div class="balance-card-header">
+                    <div class="emp-info">
+                        <div class="emp-avatar">${nameInitial}</div>
+                        <div>
+                            <div class="emp-name">${data.employee_name}</div>
+                            <div class="emp-dept">${data.department} · ${data.employee_id}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="balance-card-body">
+                    ${balancesHtml}
+                </div>
+            `;
+            chatContainer.appendChild(card);
+            scrollToBottom();
+        }
+
+        function renderLeaveResultCard(callArgs, resultData) {
+            const card = document.createElement('div');
+            card.className = 'leave-result-card';
+            const isSuccess = resultData.success;
+
+            let bodyHtml = '';
+            if (callArgs) {
+                bodyHtml = `
+                    <div class="leave-result-body">
+                        <dl class="leave-result-info">
+                            <dt>申请人</dt><dd>${callArgs.employee_name || '-'}</dd>
+                            <dt>部门</dt><dd>${callArgs.department || '-'}</dd>
+                            <dt>请假类型</dt><dd>${callArgs.leave_type || '-'}</dd>
+                            <dt>起止日期</dt><dd>${callArgs.start_date || '-'} ~ ${callArgs.end_date || '-'}</dd>
+                            <dt>请假天数</dt><dd>${callArgs.days || '-'} 天</dd>
+                            <dt>请假事由</dt><dd>${callArgs.reason || '-'}</dd>
+                        </dl>
+                        ${resultData.request_id ? `
+                            <div class="leave-result-id">
+                                &#128196; 申请单号：<strong>${resultData.request_id}</strong>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="leave-result-header ${isSuccess ? 'success' : 'fail'}">
+                    <div class="leave-result-icon">${isSuccess ? '&#10004;' : '&#10008;'}</div>
+                    <div>
+                        <div class="leave-result-title">${isSuccess ? '请假申请已提交' : '请假申请失败'}</div>
+                        <div class="leave-result-subtitle">${resultData.message}</div>
+                    </div>
+                </div>
+                ${bodyHtml}
+            `;
+            chatContainer.appendChild(card);
+            scrollToBottom();
+        }
+
+        // ===== Message Rendering =====
+
         function appendMessage(role, content) {
-            // Remove welcome message on first interaction
-            const welcome = chatContainer.querySelector('.welcome');
+            const welcome = document.getElementById('welcomeSection');
             if (welcome) welcome.remove();
 
             const div = document.createElement('div');
             div.className = `message ${role}`;
-            div.textContent = content;
+            if (role === 'assistant') {
+                div.innerHTML = renderMarkdown(content);
+            } else {
+                div.textContent = content;
+            }
             chatContainer.appendChild(div);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            scrollToBottom();
             return div;
         }
 
-        function appendSkillInfo(text) {
+        function appendSkillIndicator(skillName) {
+            const skillLabels = {
+                'query_leave_balance': '正在查询假期余额',
+                'submit_leave_request': '正在提交请假申请',
+            };
+            const label = skillLabels[skillName] || `正在执行: ${skillName}`;
+
             const div = document.createElement('div');
-            div.className = 'message skill-info';
-            div.textContent = text;
+            div.className = 'skill-indicator';
+            div.innerHTML = `<span class="dot"></span> ${label}...`;
             chatContainer.appendChild(div);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            scrollToBottom();
+            return div;
         }
+
+        function showTyping(text) {
+            const div = document.createElement('div');
+            div.className = 'typing-indicator';
+            div.innerHTML = `
+                <div class="typing-dots"><span></span><span></span><span></span></div>
+                ${text || '正在思考'}
+            `;
+            chatContainer.appendChild(div);
+            scrollToBottom();
+            return div;
+        }
+
+        // ===== Core Send Logic =====
 
         async function sendMessage() {
             const message = messageInput.value.trim();
             if (!message || isStreaming) return;
 
-            const employeeId = document.getElementById('employeeId').value.trim();
+            const employeeId = empIdInput.value.trim();
 
             appendMessage('user', message);
             messageInput.value = '';
+            messageInput.style.height = '44px';
             isStreaming = true;
             sendBtn.disabled = true;
 
-            // Show typing indicator
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'typing-indicator';
-            typingDiv.textContent = '正在思考...';
-            chatContainer.appendChild(typingDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Reset pending skill data
+            pendingSkillCalls = [];
+            pendingSkillResults = [];
+
+            const typingDiv = showTyping('正在思考');
 
             let assistantDiv = null;
             let fullContent = '';
@@ -282,6 +826,7 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
+                let currentSkillIndicator = null;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -300,18 +845,74 @@
                             const data = JSON.parse(jsonStr);
 
                             if (data.type === 'content') {
-                                typingDiv.remove();
+                                if (typingDiv.parentNode) typingDiv.remove();
+                                if (currentSkillIndicator) {
+                                    currentSkillIndicator.remove();
+                                    currentSkillIndicator = null;
+                                }
                                 if (!assistantDiv) {
                                     assistantDiv = appendMessage('assistant', '');
                                 }
                                 fullContent += data.content;
-                                assistantDiv.textContent = fullContent;
-                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                                assistantDiv.innerHTML = renderMarkdown(fullContent);
+                                scrollToBottom();
+
                             } else if (data.type === 'skill_call') {
-                                typingDiv.textContent = `正在调用: ${data.skill}...`;
-                                appendSkillInfo(`🔧 调用 ${data.skill}`);
+                                if (typingDiv.parentNode) typingDiv.remove();
+                                // Parse and store the call arguments
+                                let args = null;
+                                try { args = JSON.parse(data.arguments); } catch(e) {}
+                                pendingSkillCalls.push({
+                                    skill: data.skill,
+                                    arguments: args
+                                });
+                                currentSkillIndicator = appendSkillIndicator(data.skill);
+
                             } else if (data.type === 'skill_result') {
-                                typingDiv.textContent = '正在生成回复...';
+                                // Parse result and try to render rich card
+                                let result = null;
+                                try { result = JSON.parse(data.result); } catch(e) {}
+
+                                if (result && data.skill === 'query_leave_balance' && result.balances) {
+                                    if (currentSkillIndicator) {
+                                        currentSkillIndicator.remove();
+                                        currentSkillIndicator = null;
+                                    }
+                                    renderBalanceCard(result);
+                                } else if (result && data.skill === 'submit_leave_request' && result.success !== undefined) {
+                                    if (currentSkillIndicator) {
+                                        currentSkillIndicator.remove();
+                                        currentSkillIndicator = null;
+                                    }
+                                    // Find matching call args
+                                    const matchedCall = pendingSkillCalls.find(c => c.skill === 'submit_leave_request');
+                                    renderLeaveResultCard(matchedCall ? matchedCall.arguments : null, result);
+                                }
+
+                                pendingSkillResults.push({
+                                    skill: data.skill,
+                                    result: result
+                                });
+
+                                // Update typing for next phase
+                                if (!typingDiv.parentNode) {
+                                    const newTyping = showTyping('正在生成回复');
+                                    // Replace reference so we can remove it later
+                                    typingDiv.replaceWith(newTyping);
+                                }
+
+                            } else if (data.type === 'error') {
+                                if (typingDiv.parentNode) typingDiv.remove();
+                                if (currentSkillIndicator) {
+                                    currentSkillIndicator.remove();
+                                    currentSkillIndicator = null;
+                                }
+                                const errDiv = document.createElement('div');
+                                errDiv.className = 'message error';
+                                errDiv.textContent = data.message || '服务异常';
+                                chatContainer.appendChild(errDiv);
+                                scrollToBottom();
+
                             } else if (data.type === 'done') {
                                 // Stream complete
                             }
@@ -321,19 +922,23 @@
                     }
                 }
 
-                // Update history
+                // Update conversation history
                 history.push({ role: 'user', content: message });
                 if (fullContent) {
                     history.push({ role: 'assistant', content: fullContent });
                 }
             } catch (err) {
-                typingDiv.remove();
+                if (typingDiv.parentNode) typingDiv.remove();
                 const errDiv = document.createElement('div');
                 errDiv.className = 'message error';
-                errDiv.textContent = `请求失败: ${err.message}。请检查 API 配置后重试。`;
+                errDiv.textContent = `请求失败: ${err.message}`;
                 chatContainer.appendChild(errDiv);
             } finally {
-                if (typingDiv.parentNode) typingDiv.remove();
+                // Clean up any remaining indicators
+                document.querySelectorAll('.typing-indicator').forEach(el => el.remove());
+                document.querySelectorAll('.skill-indicator .dot').forEach(el => {
+                    el.style.animation = 'none';
+                });
                 isStreaming = false;
                 sendBtn.disabled = false;
                 messageInput.focus();
